@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<attr name="sectionListView.sectionItemPadding" format="dimension" />
+	<attr name="sectionListView.sectionItemBackground" format="color|reference" />
+
+	<attr name="sectionListView.listTextViewPadding" format="dimension" />
+	<attr name="sectionListView.listTextViewTextColor" format="color" />
+	<attr name="sectionListView.listTextViewTextSize" format="dimension" />
+	
+	<attr name="sectionListView.listItemPadding" format="dimension" />
+	<attr name="sectionListView.listItemBackground" format="color|reference" />
+
+</resources>

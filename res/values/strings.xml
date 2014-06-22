@@ -4,5 +4,7 @@
     <string name="app_name">Spell Book</string>
     <string name="action_settings">Settings</string>
     <string name="hello_world">Hello world!</string>
-
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    
 </resources>
