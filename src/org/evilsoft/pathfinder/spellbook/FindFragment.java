@@ -17,6 +17,8 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.RemoteException;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -80,6 +82,19 @@ public class FindFragment extends SherlockFragment {
 						return false;
 					}
 				});
+		nameInput.addTextChangedListener(new TextWatcher() {
+			public void afterTextChanged(Editable s) {
+				requestSpells();
+			}
+
+			public void beforeTextChanged(CharSequence s, int start, int count,
+					int after) {
+			}
+
+			public void onTextChanged(CharSequence s, int start, int before,
+					int count) {
+			}
+		});
 		listView = (SectionListView) v.findViewById(getResources()
 				.getIdentifier("startup_list", "id",
 						this.getClass().getPackage().getName()));
