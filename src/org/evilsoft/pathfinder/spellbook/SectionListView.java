@@ -20,20 +20,20 @@ public class SectionListView extends ListView implements OnScrollListener {
 	public SectionListView(final Context context, final AttributeSet attrs,
 			final int defStyle) {
 		super(context, attrs, defStyle);
-		commonInitialisation();
+		commonInitialization();
 	}
 
 	public SectionListView(final Context context, final AttributeSet attrs) {
 		super(context, attrs);
-		commonInitialisation();
+		commonInitialization();
 	}
 
 	public SectionListView(final Context context) {
 		super(context);
-		commonInitialisation();
+		commonInitialization();
 	}
 
-	protected final void commonInitialisation() {
+	protected final void commonInitialization() {
 		setOnScrollListener(this);
 		setVerticalFadingEdgeEnabled(false);
 		setFadingEdgeLength(0);

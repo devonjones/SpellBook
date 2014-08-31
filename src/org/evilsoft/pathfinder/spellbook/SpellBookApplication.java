@@ -12,6 +12,7 @@ public class SpellBookApplication extends Application {
 	@Override
 	public void onCreate() {
 		ACRA.init(this);
+		Parse.enableLocalDatastore(this);
 		Parse.initialize(this, "J8Mm9rHeYfzc1ubTVPLf6zVe3ptZYdFiHD2B6HYM",
 				"6Z9jdUUZjiHVGaWnqas9EiKM8lss29nXeFZxDiov");
 		super.onCreate();

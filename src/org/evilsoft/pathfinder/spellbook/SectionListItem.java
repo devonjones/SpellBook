@@ -27,5 +27,4 @@ public class SectionListItem {
 	public String toString() {
 		return item.toString();
 	}
-
 }

@@ -348,42 +348,8 @@ public class FindFragment extends SherlockFragment {
 		}
 	}
 
-	SectionListItem[] exampleArray = { new TestListItem("Test 1 - A", "A"),
-			new TestListItem("Test 2 - A", "A"),
-			new TestListItem("Test 3 - A", "A"),
-			new TestListItem("Test 4 - A", "A"),
-			new TestListItem("Test 5 - A", "A"),
-			new TestListItem("Test 6 - B", "B"),
-			new TestListItem("Test 7 - B", "B"),
-			new TestListItem("Test 8 - B", "B"),
-			new TestListItem("Test 9 - Long", "Long section"),
-			new TestListItem("Test 10 - Long", "Long section"),
-			new TestListItem("Test 11 - Long", "Long section"),
-			new TestListItem("Test 12 - Long", "Long section"),
-			new TestListItem("Test 13 - Long", "Long section"),
-			new TestListItem("Test 14 - A again", "A"),
-			new TestListItem("Test 15 - A again", "A"),
-			new TestListItem("Test 16 - A again", "A"),
-			new TestListItem("Test 17 - B again", "B"),
-			new TestListItem("Test 18 - B again", "B"),
-			new TestListItem("Test 19 - B again", "B"),
-			new TestListItem("Test 20 - B again", "B"),
-			new TestListItem("Test 21 - B again", "B"),
-			new TestListItem("Test 22 - B again", "B"),
-			new TestListItem("Test 23 - C", "C"),
-			new TestListItem("Test 24 - C", "C"),
-			new TestListItem("Test 25 - C", "C"),
-			new TestListItem("Test 26 - C", "C"), };
-
 	@Override
 	public void onCreate(final Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-	}
-
-	private class TestListItem extends SectionListItem {
-		public TestListItem(Object item, String section) {
-			this.item = item;
-			this.section = section;
-		}
 	}
 }
