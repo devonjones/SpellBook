@@ -1,4 +1,4 @@
-package org.evilsoft.pathfinder.spellbook;
+package org.evilsoft.pathfinder.spellbook.adapter;
 
 import android.content.Context;
 import android.database.Cursor;

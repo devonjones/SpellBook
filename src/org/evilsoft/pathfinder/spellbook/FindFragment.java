@@ -6,7 +6,12 @@ import java.util.List;
 import org.evilsoft.pathfinder.reference.api.contracts.CasterContract;
 import org.evilsoft.pathfinder.reference.api.contracts.SectionContract;
 import org.evilsoft.pathfinder.reference.api.contracts.SpellContract;
+import org.evilsoft.pathfinder.spellbook.adapter.ClassSpellListAdapter;
+import org.evilsoft.pathfinder.spellbook.adapter.SpellListAdapter;
 import org.evilsoft.pathfinder.spellbook.api.BaseApiHelper;
+import org.evilsoft.pathfinder.spellbook.sectionlist.SectionListAdapter;
+import org.evilsoft.pathfinder.spellbook.sectionlist.SectionListItem;
+import org.evilsoft.pathfinder.spellbook.sectionlist.SectionListView;
 
 import android.content.ComponentName;
 import android.content.ContentProviderClient;
@@ -159,11 +164,15 @@ public class FindFragment extends SherlockFragment {
 		selectionArgs[1] = className;
 		Cursor curs = classListClient.query(SectionContract.SECTION_LIST_URI,
 				null, "type = ? AND name = ?", selectionArgs, null);
-		boolean hasNext = curs.moveToFirst();
-		if (hasNext) {
-			return SectionContract.SectionContractUtils.getId(curs);
+		try {
+			boolean hasNext = curs.moveToFirst();
+			if (hasNext) {
+				return SectionContract.SectionContractUtils.getId(curs);
+			}
+			return null;
+		} finally {
+			curs.close();
 		}
-		return null;
 	}
 
 	public void requestSpells() {
@@ -212,7 +221,6 @@ public class FindFragment extends SherlockFragment {
 							BaseApiHelper.toStringArray(selectionArgs), null);
 					searchAdapter = new SpellListAdapter(getActivity()
 							.getApplicationContext(), curs);
-
 				}
 				sectionAdapter = new SectionListAdapter(getActivity()
 						.getLayoutInflater(), searchAdapter);

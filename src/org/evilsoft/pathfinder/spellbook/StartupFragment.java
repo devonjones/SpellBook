@@ -3,9 +3,20 @@ package org.evilsoft.pathfinder.spellbook;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.evilsoft.pathfinder.spellbook.data.SpellBookContract.SpellbookEntry;
+import org.evilsoft.pathfinder.spellbook.sectionlist.SectionListAdapter;
+import org.evilsoft.pathfinder.spellbook.sectionlist.SectionListItem;
+import org.evilsoft.pathfinder.spellbook.sectionlist.SectionListView;
+
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.Bundle;
+import android.support.v4.app.LoaderManager;
+import android.support.v4.content.CursorLoader;
+import android.support.v4.content.Loader;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -17,12 +28,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.actionbarsherlock.app.SherlockFragment;
-import com.parse.FindCallback;
-import com.parse.ParseException;
-import com.parse.ParseObject;
-import com.parse.ParseQuery;
 
-public class StartupFragment extends SherlockFragment {
+public class StartupFragment extends SherlockFragment implements
+		LoaderManager.LoaderCallbacks<Cursor> {
 	private static final String TAG = "StartupFragment";
 	private StandardArrayAdapter arrayAdapter;
 	private SectionListAdapter sectionAdapter;
@@ -33,7 +41,6 @@ public class StartupFragment extends SherlockFragment {
 			Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		View v = inflater.inflate(R.layout.startup_fragment, container, false);
-
 		arrayAdapter = new StandardArrayAdapter(getActivity()
 				.getApplicationContext(), R.id.startup_text_view,
 				createViewList());
@@ -52,7 +59,6 @@ public class StartupFragment extends SherlockFragment {
 				i.onClick();
 			}
 		});
-		getSpellbooks();
 
 		TextView find = (TextView) v.findViewById(getResources().getIdentifier(
 				"find_spells", "id", this.getClass().getPackage().getName()));
@@ -67,14 +73,6 @@ public class StartupFragment extends SherlockFragment {
 		});
 		return v;
 	}
-
-	/*
-	 * private void createSpellBook1() { ParseObject spellBook = new
-	 * ParseObject("SpellBook"); spellBook.put("name", "SpellBook 1");
-	 * spellBook.put("characterClass", "Wizard"); spellBook.setACL(new
-	 * ParseACL(UserManager.getInstance().getUser()));
-	 * spellBook.saveEventually(); }
-	 */
 
 	private class StandardArrayAdapter extends ArrayAdapter<SectionListItem> {
 
@@ -107,48 +105,6 @@ public class StartupFragment extends SherlockFragment {
 		}
 	}
 
-	private void getSpellbooks() {
-		ParseQuery<ParseObject> query = ParseQuery.getQuery("SpellBook");
-		// query.whereEqualTo("owner", UserManager.getInstance().getUser());
-		query.findInBackground(new FindCallback<ParseObject>() {
-			public void done(List<ParseObject> spellBooks, ParseException e) {
-				if (e == null) {
-					spellBookList.clear();
-					for (int i = 0; i < spellBooks.size(); i++) {
-						ParseObject spellBook = spellBooks.get(i);
-						spellBookList.add(new ParseListItem(spellBook
-								.getString("name"), "Spell Books", spellBook));
-					}
-					spellBookList.add(new ActionListItem("New...",
-							"Spell Books"));
-					arrayAdapter.clear();
-					arrayAdapter.addAll(createViewList());
-					arrayAdapter.notifyDataSetChanged();
-				} else {
-					Toast.makeText(getActivity(), e.getMessage(),
-							Toast.LENGTH_LONG).show();
-				}
-			}
-		});
-	}
-
-	private class ParseListItem extends SectionListItem implements
-			ClickableItem {
-		ParseObject po;
-
-		public ParseListItem(Object item, String section, ParseObject po) {
-			this.item = item;
-			this.section = section;
-			this.po = po;
-		}
-
-		@Override
-		public void onClick() {
-			Toast.makeText(getActivity(), (String) item, Toast.LENGTH_SHORT)
-					.show();
-		}
-	}
-
 	private class ActionListItem extends SectionListItem implements
 			ClickableItem {
 		public ActionListItem(Object item, String section) {
@@ -163,6 +119,45 @@ public class StartupFragment extends SherlockFragment {
 		}
 	}
 
+	private class NewSpellbookListItem extends SectionListItem implements
+			ClickableItem {
+		public NewSpellbookListItem(Object item, String section) {
+			this.item = item;
+			this.section = section;
+		}
+
+		@Override
+		public void onClick() {
+			ContentValues spellbookValues = new ContentValues();
+			spellbookValues.put(SpellbookEntry.COLUMN_NAME, "New Spellbook");
+			spellbookValues.put(SpellbookEntry.COLUMN_SPELL_CLASS, "Wizard");
+			Uri spellbookInsertUri = getActivity().getContentResolver().insert(
+					SpellbookEntry.CONTENT_URI, spellbookValues);
+			Intent showContent = new Intent(StartupFragment.this.getActivity()
+					.getApplicationContext(), SpellbookActivity.class);
+			showContent.setData(spellbookInsertUri);
+			startActivity(showContent);
+		}
+	}
+
+	private class ClickableSpellbookListItem extends SpellbookListItem
+			implements ClickableItem {
+		public ClickableSpellbookListItem(long spellbookId, String name,
+				String spellClass) {
+			super(spellbookId, name, spellClass);
+		}
+
+		@Override
+		public void onClick() {
+			Uri spellbookInsertUri = SpellbookEntry
+					.buildSpellbookUri(spellbookId);
+			Intent showContent = new Intent(StartupFragment.this.getActivity()
+					.getApplicationContext(), SpellbookActivity.class);
+			showContent.setData(spellbookInsertUri);
+			startActivity(showContent);
+		}
+	}
+
 	List<SectionListItem> characterList;
 	List<SectionListItem> spellBookList;
 
@@ -172,7 +167,19 @@ public class StartupFragment extends SherlockFragment {
 		characterList = new ArrayList<SectionListItem>();
 		characterList.add(new ActionListItem("New...", "Characters"));
 		spellBookList = new ArrayList<SectionListItem>();
-		spellBookList.add(new ActionListItem("New...", "Spell Books"));
+		spellBookList.add(new NewSpellbookListItem("New...", "Spell Books"));
+	}
+
+	@Override
+	public void onResume() {
+		super.onResume();
+		getLoaderManager().restartLoader(SPELLBOOK_LOADER, null, this);
+	}
+
+	@Override
+	public void onActivityCreated(Bundle savedInstanceState) {
+		super.onActivityCreated(savedInstanceState);
+		getLoaderManager().initLoader(SPELLBOOK_LOADER, null, this);
 	}
 
 	private List<SectionListItem> createViewList() {
@@ -180,5 +187,48 @@ public class StartupFragment extends SherlockFragment {
 		tmpList.addAll(characterList);
 		tmpList.addAll(spellBookList);
 		return tmpList;
+	}
+
+	private static final String[] SPELLBOOK_COLUMNS = {
+			SpellbookEntry.TABLE_NAME + "." + SpellbookEntry._ID,
+			SpellbookEntry.COLUMN_NAME, SpellbookEntry.COLUMN_SPELL_CLASS };
+
+	private static final int SPELLBOOK_LOADER = 0;
+
+	@Override
+	public Loader<Cursor> onCreateLoader(int id, Bundle args) {
+		// Sort order: Ascending, by date.
+		if (id == SPELLBOOK_LOADER) {
+			String sortOrder = SpellbookEntry.COLUMN_NAME + " ASC";
+			return new CursorLoader(getActivity(), SpellbookEntry.CONTENT_URI,
+					SPELLBOOK_COLUMNS, null, null, sortOrder);
+		}
+		return null;
+	}
+
+	@Override
+	public void onLoadFinished(Loader<Cursor> loader, Cursor cursor) {
+		switch (loader.getId()) {
+		case SPELLBOOK_LOADER:
+			boolean has_next = cursor.moveToFirst();
+			spellBookList.clear();
+			while (has_next) {
+				long spellbookId = cursor.getLong(0);
+				String name = cursor.getString(1);
+				String spellClass = cursor.getString(2);
+				spellBookList.add(new ClickableSpellbookListItem(spellbookId,
+						name, spellClass));
+				has_next = cursor.moveToNext();
+			}
+			spellBookList
+					.add(new NewSpellbookListItem("New...", "Spell Books"));
+			arrayAdapter.clear();
+			arrayAdapter.addAll(createViewList());
+			arrayAdapter.notifyDataSetChanged();
+		}
+	}
+
+	@Override
+	public void onLoaderReset(Loader<Cursor> loader) {
 	}
 }

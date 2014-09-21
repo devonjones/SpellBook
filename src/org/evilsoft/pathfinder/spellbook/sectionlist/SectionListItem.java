@@ -1,4 +1,4 @@
-package org.evilsoft.pathfinder.spellbook;
+package org.evilsoft.pathfinder.spellbook.sectionlist;
 
 /**
  * Item definition including the section.

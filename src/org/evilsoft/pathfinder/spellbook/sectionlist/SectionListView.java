@@ -1,4 +1,4 @@
-package org.evilsoft.pathfinder.spellbook;
+package org.evilsoft.pathfinder.spellbook.sectionlist;
 
 import android.content.Context;
 import android.util.AttributeSet;

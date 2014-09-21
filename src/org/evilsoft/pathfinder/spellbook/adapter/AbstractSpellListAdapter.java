@@ -1,28 +1,34 @@
-package org.evilsoft.pathfinder.spellbook;
+package org.evilsoft.pathfinder.spellbook.adapter;
 
 import org.evilsoft.pathfinder.reference.api.contracts.SpellContract;
+import org.evilsoft.pathfinder.spellbook.R;
+import org.evilsoft.pathfinder.spellbook.SpellListItem;
 
 import android.content.Context;
 import android.database.Cursor;
 import android.text.Html;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
-public class SpellListAdapter extends DisplayListAdapter {
-	public SpellListAdapter(Context context, Cursor c) {
+public abstract class AbstractSpellListAdapter extends DisplayListAdapter {
+	public AbstractSpellListAdapter(Context context, Cursor c) {
 		super(context, c);
 	}
+
+	public abstract View inflate(int index, View convertView, ViewGroup parent);
+
+	public abstract View localGetView(int index, View convertView,
+			ViewGroup parent, View local, SpellListItem currentItem);
+
+	public abstract boolean isClassSpellList();
 
 	@Override
 	public View getView(int index, View convertView, ViewGroup parent) {
 		View view = convertView;
 		moveCursor(index);
 		if (view == null) {
-			final LayoutInflater vi = (LayoutInflater) context
-					.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-			view = vi.inflate(R.layout.spell_list_item, null);
+			view = inflate(index, convertView, parent);
 		}
 		final SpellListItem currentItem = (SpellListItem) buildItem(c);
 		if (currentItem != null) {
@@ -36,11 +42,6 @@ public class SpellListAdapter extends DisplayListAdapter {
 			if (descriptorView != null) {
 				descriptorView.setText(currentItem.buildSchoolLine());
 			}
-			final TextView classesView = (TextView) view
-					.findViewById(R.id.spell_list_classes);
-			if (classesView != null) {
-				classesView.setText(currentItem.getClasses());
-			}
 			final TextView descriptionView = (TextView) view
 					.findViewById(R.id.spell_list_description);
 			if (descriptionView != null) {
@@ -48,11 +49,19 @@ public class SpellListAdapter extends DisplayListAdapter {
 						+ currentItem.getDescription()));
 			}
 		}
-		return view;
+		return localGetView(index, convertView, parent, view, currentItem);
 	}
 
 	@Override
 	public Object buildItem(Cursor c) {
+		if (isClassSpellList()) {
+			return GenerateClassSpellListItem(c);
+		} else {
+			return GenerateSpellListItem(c);
+		}
+	}
+
+	public static SpellListItem GenerateSpellListItem(Cursor c) {
 		SpellListItem sla = new SpellListItem();
 		sla.setId(SpellContract.SpellContractUtils.getId(c));
 		sla.setSource(SpellContract.SpellContractUtils.getSource(c));
@@ -66,6 +75,26 @@ public class SpellListAdapter extends DisplayListAdapter {
 		sla.setDescriptor(SpellContract.SpellContractUtils.getDescriptor(c));
 		sla.setComponents(SpellContract.SpellContractUtils.getComponents(c));
 		sla.setClasses(SpellContract.SpellContractUtils.getClasses(c));
+		return sla;
+	}
+
+	public static SpellListItem GenerateClassSpellListItem(Cursor c) {
+		SpellListItem sla = new SpellListItem();
+		sla.setId(SpellContract.SpellListContractUtils.getId(c));
+		sla.setSource(SpellContract.SpellListContractUtils.getSource(c));
+		sla.setType(SpellContract.SpellListContractUtils.getType(c));
+		sla.setSubType(SpellContract.SpellListContractUtils.getSubType(c));
+		sla.setName(SpellContract.SpellListContractUtils.getName(c));
+		sla.setContentUrl(SpellContract.SpellListContractUtils.getContentUrl(c));
+		sla.setDescription(SpellContract.SpellListContractUtils
+				.getDescription(c));
+		sla.setSchool(SpellContract.SpellListContractUtils.getSchool(c));
+		sla.setSubschool(SpellContract.SpellListContractUtils.getSubschool(c));
+		sla.setDescriptor(SpellContract.SpellListContractUtils.getDescriptor(c));
+		sla.setComponents(SpellContract.SpellListContractUtils.getComponents(c));
+		sla.setClassName(SpellContract.SpellListContractUtils.getClass(c));
+		sla.setLevel(SpellContract.SpellListContractUtils.getLevel(c));
+		sla.setMagicType(SpellContract.SpellListContractUtils.getMagicType(c));
 		return sla;
 	}
 }

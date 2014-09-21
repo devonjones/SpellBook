@@ -23,4 +23,7 @@
     <string name="title_activity_create_account">CreateAccountActivity</string>
     <string name="menu_settings">Settings</string>
     <string name="title_activity_main">MainActivity</string>
+    <string name="content_authority">"org.evilsoft.pathfinder.spellbook"</string>
+    <string name="content_authority_spell">"org.evilsoft.pathfinder.spellbook.spell"</string>
+
 </resources>

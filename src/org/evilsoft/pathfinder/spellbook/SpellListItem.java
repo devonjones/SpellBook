@@ -1,5 +1,7 @@
 package org.evilsoft.pathfinder.spellbook;
 
+import org.evilsoft.pathfinder.spellbook.sectionlist.SectionListItem;
+
 public class SpellListItem extends SectionListItem {
 	private int id;
 	private String source;

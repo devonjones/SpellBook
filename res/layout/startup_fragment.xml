@@ -16,10 +16,10 @@
 	<FrameLayout
 		android:layout_width="fill_parent"
 		android:layout_height="fill_parent" >
-		<org.evilsoft.pathfinder.spellbook.SectionListView
+		<org.evilsoft.pathfinder.spellbook.sectionlist.SectionListView
 			android:id="@+id/startup_list"
 			android:layout_width="fill_parent"
 			android:layout_height="fill_parent" >
-		</org.evilsoft.pathfinder.spellbook.SectionListView>
+		</org.evilsoft.pathfinder.spellbook.sectionlist.SectionListView>
 	</FrameLayout>
 </LinearLayout>

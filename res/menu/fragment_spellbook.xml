@@ -1,0 +1,8 @@
+
+    <menu xmlns:android="http://schemas.android.com/apk/res/android">
+        <group android:id="@+id/spellbook">
+            <item android:id="@+id/menu_rename_spellbook" android:title="Rename"></item>
+            <item android:id="@+id/menu_change_class" android:title="Change Spellbook Class"></item>
+            <item android:id="@+id/menu_delete_spellbook" android:title="Delete Spellbook"></item>
+        </group>
+    </menu>

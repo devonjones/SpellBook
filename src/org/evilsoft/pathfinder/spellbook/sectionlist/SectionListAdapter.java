@@ -1,9 +1,13 @@
-package org.evilsoft.pathfinder.spellbook;
+package org.evilsoft.pathfinder.spellbook.sectionlist;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+
+import org.evilsoft.pathfinder.spellbook.R;
+import org.evilsoft.pathfinder.spellbook.R.id;
+import org.evilsoft.pathfinder.spellbook.R.layout;
 
 import android.database.DataSetObserver;
 import android.view.LayoutInflater;
