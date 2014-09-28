@@ -10,7 +10,7 @@ import com.actionbarsherlock.app.SherlockFragmentActivity;
 
 public class SpellbookActivity extends SherlockFragmentActivity {
 	SpellbookPagerAdapter mAdapter;
-	ViewPager mPager;
+	protected ViewPager mPager;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {

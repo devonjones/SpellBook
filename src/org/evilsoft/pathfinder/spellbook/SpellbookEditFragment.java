@@ -1,10 +1,8 @@
 package org.evilsoft.pathfinder.spellbook;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.evilsoft.pathfinder.reference.api.contracts.CasterContract;
@@ -41,7 +39,6 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.AdapterView.OnItemSelectedListener;
-import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.EditText;
 import android.widget.Spinner;
@@ -53,13 +50,11 @@ public class SpellbookEditFragment extends SherlockFragment implements
 		LoaderManager.LoaderCallbacks<Cursor> {
 	private static final String TAG = "SpellbookEditFragment";
 	private BaseAdapter searchAdapter;
-	private TextView mSpellbookName;
 	private TextView mSpellbookClass;
 	private SectionListAdapter sectionAdapter;
 	private SectionListView listView;
 	private ContentResolver cr;
-	private Map<String, CasterClass> classMap;
-	private List<CasterClass> classList;
+	private ClassListHandler classListHandler;
 	private Spinner levelSpinner;
 	private TextView levelText;
 	private EditText nameInput;
@@ -79,7 +74,6 @@ public class SpellbookEditFragment extends SherlockFragment implements
 		cr = this.getActivity().getContentResolver();
 		v = inflater
 				.inflate(R.layout.spellbook_edit_fragment, container, false);
-		mSpellbookName = (TextView) v.findViewById(R.id.spellbook_name);
 		mSpellbookClass = (TextView) v.findViewById(R.id.spellbook_class);
 		levelSpinner = (Spinner) v.findViewById(R.id.level_spinner);
 		levelSpinner
@@ -178,32 +172,6 @@ public class SpellbookEditFragment extends SherlockFragment implements
 		}
 	}
 
-	protected class CasterClass {
-		private String name;
-		private List<String> levels;
-
-		public CasterClass(String name) {
-			this.name = name;
-			levels = new ArrayList<String>();
-		}
-
-		public void setName(String name) {
-			this.name = name;
-		}
-
-		public void addLevel(String level) {
-			levels.add(level);
-		}
-
-		public String getName() {
-			return this.name;
-		}
-
-		public List<String> getLevels() {
-			return this.levels;
-		}
-	}
-
 	private static final int SPELLBOOK_LOADER = 0;
 	private static final String[] SPELLBOOK_COLUMNS = {
 			SpellbookEntry.TABLE_NAME + "." + SpellbookEntry._ID,
@@ -251,7 +219,7 @@ public class SpellbookEditFragment extends SherlockFragment implements
 			if (hasNext) {
 				this.spellbookId = cursor.getLong(0);
 				spellbookName = cursor.getString(1);
-				this.mSpellbookName.setText(spellbookName);
+				getActivity().getActionBar().setTitle(spellbookName);
 				spellbookClass = cursor.getString(2);
 				this.mSpellbookClass.setText(spellbookClass);
 				levelSpinner.setVisibility(View.VISIBLE);
@@ -263,28 +231,7 @@ public class SpellbookEditFragment extends SherlockFragment implements
 			}
 			break;
 		case CLASSLIST_LOADER:
-			hasNext = cursor.moveToFirst();
-			CasterClass casterClass = null;
-			classList = new ArrayList<CasterClass>();
-			classMap = new HashMap<String, CasterClass>();
-			while (hasNext) {
-				String className = CasterContract.CasterContractUtils
-						.getClass(cursor);
-				String classLevel = CasterContract.CasterContractUtils
-						.getLevel(cursor).toString();
-				if (casterClass == null) {
-					casterClass = new CasterClass(className);
-					classList.add(casterClass);
-					classMap.put(className, casterClass);
-				}
-				if (!className.equals(casterClass.getName())) {
-					casterClass = new CasterClass(className);
-					classList.add(casterClass);
-					classMap.put(className, casterClass);
-				}
-				casterClass.getLevels().add(classLevel);
-				hasNext = cursor.moveToNext();
-			}
+			classListHandler = new ClassListHandler(this.getActivity(), cursor);
 			break;
 		case CLASSID_LOADER:
 			hasNext = cursor.moveToFirst();
@@ -305,8 +252,9 @@ public class SpellbookEditFragment extends SherlockFragment implements
 			throw new UnsupportedOperationException("Unknown id: "
 					+ loader.getId());
 		}
-		if (classMap != null && spellbookClass != null) {
-			populateLevelSpinner(classMap.get(spellbookClass));
+		if (classListHandler != null && spellbookClass != null) {
+			classListHandler.populateLevelSpinner(levelSpinner, spellbookClass,
+					true);
 			if (spellbookClassId != null) {
 				requestSpells();
 			}
@@ -315,7 +263,6 @@ public class SpellbookEditFragment extends SherlockFragment implements
 
 	public void requestSpells() {
 		Integer level = levelSpinner.getSelectedItemPosition() - 1;
-		addSearch.setVisibility(View.GONE);
 		try {
 			ContentProviderClient spellListClient = cr
 					.acquireContentProviderClient(SpellContract.AUTHORITY);
@@ -344,17 +291,6 @@ public class SpellbookEditFragment extends SherlockFragment implements
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-	}
-
-	public void populateLevelSpinner(CasterClass caster) {
-		List<String> list = new ArrayList<String>();
-		list.add("-");
-		list.addAll(1, caster.getLevels());
-		ArrayAdapter<String> dataAdapter = new ArrayAdapter<String>(
-				this.getActivity(), android.R.layout.simple_spinner_item, list);
-		dataAdapter
-				.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-		levelSpinner.setAdapter(dataAdapter);
 	}
 
 	@Override

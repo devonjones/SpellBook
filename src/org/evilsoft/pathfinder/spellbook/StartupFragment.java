@@ -3,13 +3,17 @@ package org.evilsoft.pathfinder.spellbook;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.evilsoft.pathfinder.reference.api.contracts.CasterContract;
 import org.evilsoft.pathfinder.spellbook.data.SpellBookContract.SpellbookEntry;
 import org.evilsoft.pathfinder.spellbook.sectionlist.SectionListAdapter;
 import org.evilsoft.pathfinder.spellbook.sectionlist.SectionListItem;
 import org.evilsoft.pathfinder.spellbook.sectionlist.SectionListView;
 
+import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
@@ -17,13 +21,18 @@ import android.os.Bundle;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.CursorLoader;
 import android.support.v4.content.Loader;
+import android.text.InputType;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -35,6 +44,7 @@ public class StartupFragment extends SherlockFragment implements
 	private StandardArrayAdapter arrayAdapter;
 	private SectionListAdapter sectionAdapter;
 	private SectionListView listView;
+	private ClassListHandler classListHandler;
 
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -54,9 +64,12 @@ public class StartupFragment extends SherlockFragment implements
 			@Override
 			public void onItemClick(AdapterView<?> parent, View view,
 					int position, long id) {
-				ClickableItem i = (ClickableItem) listView.getAdapter()
-						.getItem(position);
-				i.onClick();
+				Object o = listView.getAdapter().getItem(position);
+				;
+				if (o instanceof ClickableItem) {
+					ClickableItem i = (ClickableItem) o;
+					i.onClick();
+				}
 			}
 		});
 
@@ -128,16 +141,70 @@ public class StartupFragment extends SherlockFragment implements
 
 		@Override
 		public void onClick() {
-			ContentValues spellbookValues = new ContentValues();
-			spellbookValues.put(SpellbookEntry.COLUMN_NAME, "New Spellbook");
-			spellbookValues.put(SpellbookEntry.COLUMN_SPELL_CLASS, "Wizard");
-			Uri spellbookInsertUri = getActivity().getContentResolver().insert(
-					SpellbookEntry.CONTENT_URI, spellbookValues);
-			Intent showContent = new Intent(StartupFragment.this.getActivity()
-					.getApplicationContext(), SpellbookActivity.class);
-			showContent.setData(spellbookInsertUri);
-			startActivity(showContent);
+			readSpellbookAttributes();
 		}
+	}
+
+	protected boolean readSpellbookAttributes() {
+		AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+		builder.setTitle("Spellbook Name");
+
+		// Set up the input
+		final Spinner classSpinner = new Spinner(getActivity());
+		classListHandler.populateClassSpinner(classSpinner, "Wizard", false);
+
+		final EditText input = new EditText(getActivity());
+		input.setText("New Spellbook");
+		input.setSelectAllOnFocus(true);
+		// Specify the type of input expected; this, for example, sets
+		// the input as a password, and will mask the text
+		input.setInputType(InputType.TYPE_CLASS_TEXT);
+
+		final LinearLayout layout = new LinearLayout(getActivity());
+		layout.setOrientation(LinearLayout.VERTICAL);
+		layout.addView(input);
+		layout.addView(classSpinner);
+		builder.setView(layout);
+
+		// Set up the buttons
+		builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+			@Override
+			public void onClick(DialogInterface dialog, int which) {
+				ContentValues spellbookValues = new ContentValues();
+				spellbookValues.put(SpellbookEntry.COLUMN_NAME, input.getText()
+						.toString());
+				spellbookValues.put(SpellbookEntry.COLUMN_SPELL_CLASS,
+						(String) classSpinner.getSelectedItem());
+				Uri spellbookInsertUri = getActivity().getContentResolver()
+						.insert(SpellbookEntry.CONTENT_URI, spellbookValues);
+				Intent showContent = new Intent(StartupFragment.this
+						.getActivity().getApplicationContext(),
+						SpellbookActivity.class);
+				showContent.setData(spellbookInsertUri);
+				startActivity(showContent);
+			}
+		});
+		builder.setNegativeButton("Cancel",
+				new DialogInterface.OnClickListener() {
+					@Override
+					public void onClick(DialogInterface dialog, int which) {
+						dialog.cancel();
+					}
+				});
+
+		final Dialog dialog = builder.create();
+		input.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+			@Override
+			public void onFocusChange(View v, boolean hasFocus) {
+				if (hasFocus) {
+					dialog.getWindow()
+							.setSoftInputMode(
+									WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+				}
+			}
+		});
+		dialog.show();
+		return true;
 	}
 
 	private class ClickableSpellbookListItem extends SpellbookListItem
@@ -174,12 +241,14 @@ public class StartupFragment extends SherlockFragment implements
 	public void onResume() {
 		super.onResume();
 		getLoaderManager().restartLoader(SPELLBOOK_LOADER, null, this);
+		getLoaderManager().restartLoader(CLASSLIST_LOADER, null, this);
 	}
 
 	@Override
 	public void onActivityCreated(Bundle savedInstanceState) {
 		super.onActivityCreated(savedInstanceState);
 		getLoaderManager().initLoader(SPELLBOOK_LOADER, null, this);
+		getLoaderManager().initLoader(CLASSLIST_LOADER, null, this);
 	}
 
 	private List<SectionListItem> createViewList() {
@@ -194,14 +263,19 @@ public class StartupFragment extends SherlockFragment implements
 			SpellbookEntry.COLUMN_NAME, SpellbookEntry.COLUMN_SPELL_CLASS };
 
 	private static final int SPELLBOOK_LOADER = 0;
+	private static final int CLASSLIST_LOADER = 2;
 
 	@Override
 	public Loader<Cursor> onCreateLoader(int id, Bundle args) {
 		// Sort order: Ascending, by date.
-		if (id == SPELLBOOK_LOADER) {
+		switch (id) {
+		case SPELLBOOK_LOADER:
 			String sortOrder = SpellbookEntry.COLUMN_NAME + " ASC";
 			return new CursorLoader(getActivity(), SpellbookEntry.CONTENT_URI,
 					SPELLBOOK_COLUMNS, null, null, sortOrder);
+		case CLASSLIST_LOADER:
+			return new CursorLoader(getActivity(),
+					CasterContract.CASTER_LIST_URI, null, null, null, null);
 		}
 		return null;
 	}
@@ -225,6 +299,10 @@ public class StartupFragment extends SherlockFragment implements
 			arrayAdapter.clear();
 			arrayAdapter.addAll(createViewList());
 			arrayAdapter.notifyDataSetChanged();
+			break;
+		case CLASSLIST_LOADER:
+			classListHandler = new ClassListHandler(this.getActivity(), cursor);
+			break;
 		}
 	}
 

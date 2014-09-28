@@ -10,7 +10,6 @@ import org.evilsoft.pathfinder.spellbook.adapter.ClassSpellListAdapter;
 import org.evilsoft.pathfinder.spellbook.adapter.SpellListAdapter;
 import org.evilsoft.pathfinder.spellbook.api.BaseApiHelper;
 import org.evilsoft.pathfinder.spellbook.sectionlist.SectionListAdapter;
-import org.evilsoft.pathfinder.spellbook.sectionlist.SectionListItem;
 import org.evilsoft.pathfinder.spellbook.sectionlist.SectionListView;
 
 import android.content.ComponentName;
@@ -22,9 +21,11 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.RemoteException;
+import android.support.v4.app.LoaderManager;
+import android.support.v4.content.CursorLoader;
+import android.support.v4.content.Loader;
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -35,7 +36,6 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.AdapterView.OnItemSelectedListener;
-import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.EditText;
 import android.widget.Spinner;
@@ -43,13 +43,14 @@ import android.widget.TextView;
 
 import com.actionbarsherlock.app.SherlockFragment;
 
-public class FindFragment extends SherlockFragment {
+public class FindFragment extends SherlockFragment implements
+		LoaderManager.LoaderCallbacks<Cursor> {
 	private static final String TAG = "FindFragment";
 	private BaseAdapter searchAdapter;
 	private SectionListAdapter sectionAdapter;
 	private SectionListView listView;
 	private ContentResolver cr;
-	private List<CasterClass> classList;
+	private ClassListHandler classListHandler;
 	private Spinner classSpinner;
 	private Spinner levelSpinner;
 	private TextView levelText;
@@ -119,8 +120,6 @@ public class FindFragment extends SherlockFragment {
 		});
 		getActivity().getWindow().setSoftInputMode(
 				WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
-		getClassList();
-		populateClassSpinner();
 		requestSpells();
 		return v;
 	}
@@ -129,32 +128,21 @@ public class FindFragment extends SherlockFragment {
 		InputMethodManager imm = (InputMethodManager) getActivity()
 				.getSystemService(Context.INPUT_METHOD_SERVICE);
 		imm.hideSoftInputFromWindow(input.getWindowToken(), 0);
-
 	}
 
-	public void populateClassSpinner() {
-		List<String> list = new ArrayList<String>();
-		list.add("-None-");
-		for (int i = 0; i < classList.size(); i++) {
-			list.add(classList.get(i).getName());
-		}
-		ArrayAdapter<String> dataAdapter = new ArrayAdapter<String>(
-				this.getActivity(), android.R.layout.simple_spinner_item, list);
-		dataAdapter
-				.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-		classSpinner.setAdapter(dataAdapter);
+	@Override
+	public void onResume() {
+		super.onResume();
+		getLoaderManager().restartLoader(CLASSLIST_LOADER, null, this);
 	}
 
-	public void populateLevelSpinner(Integer classNum) {
-		List<String> list = new ArrayList<String>();
-		list.add("-");
-		list.addAll(1, classList.get(classNum).getLevels());
-		ArrayAdapter<String> dataAdapter = new ArrayAdapter<String>(
-				this.getActivity(), android.R.layout.simple_spinner_item, list);
-		dataAdapter
-				.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-		levelSpinner.setAdapter(dataAdapter);
+	@Override
+	public void onActivityCreated(Bundle savedInstanceState) {
+		super.onActivityCreated(savedInstanceState);
+		getLoaderManager().initLoader(CLASSLIST_LOADER, null, this);
 	}
+
+	private static final int CLASSLIST_LOADER = 2;
 
 	public Integer getClassIndexId(String className) throws RemoteException {
 		ContentProviderClient classListClient = cr
@@ -187,8 +175,9 @@ public class FindFragment extends SherlockFragment {
 				ContentProviderClient spellListClient = cr
 						.acquireContentProviderClient(SpellContract.AUTHORITY);
 				if (classPos > 0) {
-					Integer classId = getClassIndexId(classList.get(
-							classPos - 1).getName());
+
+					Integer classId = getClassIndexId(classListHandler
+							.getClassName(classPos - 1));
 					List<String> selectionArgs = new ArrayList<String>();
 					List<String> selection = new ArrayList<String>();
 
@@ -242,7 +231,8 @@ public class FindFragment extends SherlockFragment {
 				levelText.setVisibility(View.INVISIBLE);
 				v.requestLayout();
 			} else {
-				populateLevelSpinner(pos - 1);
+				classListHandler.populateLevelSpinner(levelSpinner, pos - 1,
+						true);
 				levelSpinner.setVisibility(View.VISIBLE);
 				levelText.setVisibility(View.VISIBLE);
 				v.requestLayout();
@@ -269,95 +259,37 @@ public class FindFragment extends SherlockFragment {
 		}
 	}
 
-	protected class CasterClass {
-		private String name;
-		private List<String> levels;
-
-		public CasterClass(String name) {
-			this.name = name;
-			levels = new ArrayList<String>();
-		}
-
-		public void setName(String name) {
-			this.name = name;
-		}
-
-		public void addLevel(String level) {
-			levels.add(level);
-		}
-
-		public String getName() {
-			return this.name;
-		}
-
-		public List<String> getLevels() {
-			return this.levels;
-		}
-	}
-
-	private void getClassList() {
-		ContentProviderClient casterClient = cr
-				.acquireContentProviderClient(CasterContract.AUTHORITY);
-		classList = new ArrayList<CasterClass>();
-		try {
-			Cursor curs = casterClient.query(CasterContract.CASTER_LIST_URI,
-					null, null, null, null);
-			boolean hasNext = curs.moveToFirst();
-			CasterClass casterClass = null;
-			while (hasNext) {
-				String className = CasterContract.CasterContractUtils
-						.getClass(curs);
-				String classLevel = CasterContract.CasterContractUtils
-						.getLevel(curs).toString();
-				if (casterClass == null) {
-					casterClass = new CasterClass(className);
-					classList.add(casterClass);
-				}
-				if (!className.equals(casterClass.getName())) {
-					casterClass = new CasterClass(className);
-					classList.add(casterClass);
-				}
-				casterClass.getLevels().add(classLevel);
-				hasNext = curs.moveToNext();
-			}
-		} catch (RemoteException e) {
-			Log.e("CasterList", "Failed on load", e);
-		}
-	}
-
-	private class StandardArrayAdapter extends ArrayAdapter<SectionListItem> {
-
-		private final SectionListItem[] items;
-
-		public StandardArrayAdapter(final Context context,
-				final int textViewResourceId, final SectionListItem[] items) {
-			super(context, textViewResourceId, items);
-			this.items = items;
-		}
-
-		@Override
-		public View getView(final int position, final View convertView,
-				final ViewGroup parent) {
-			View view = convertView;
-			if (view == null) {
-				final LayoutInflater vi = (LayoutInflater) getActivity()
-						.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-				view = vi.inflate(R.layout.find_list_view, null);
-			}
-			final SectionListItem currentItem = items[position];
-			if (currentItem != null) {
-				final TextView textView = (TextView) view
-						.findViewById(R.id.find_name);
-				if (textView != null) {
-					textView.setText(currentItem.item.toString());
-				}
-			}
-			return view;
+	@Override
+	public Loader<Cursor> onCreateLoader(int id, Bundle args) {
+		String sortOrder;
+		switch (id) {
+		case CLASSLIST_LOADER:
+			return new CursorLoader(getActivity(),
+					CasterContract.CASTER_LIST_URI, null, null, null, null);
+		default:
+			throw new UnsupportedOperationException("Unknown id: " + id);
 		}
 	}
 
 	@Override
-	public void onCreate(final Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
+	public void onLoadFinished(Loader<Cursor> loader, Cursor cursor) {
+		boolean hasNext = false;
+		switch (loader.getId()) {
+		case CLASSLIST_LOADER:
+			classListHandler = new ClassListHandler(this.getActivity(), cursor);
+			break;
+		default:
+			throw new UnsupportedOperationException("Unknown id: "
+					+ loader.getId());
+		}
+		if (classListHandler != null) {
+			classListHandler.populateClassSpinner(classSpinner, null, true);
+		}
+	}
+
+	@Override
+	public void onLoaderReset(Loader<Cursor> arg0) {
+		// TODO Auto-generated method stub
+
 	}
 }

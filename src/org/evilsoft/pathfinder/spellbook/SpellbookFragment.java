@@ -26,7 +26,6 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
-import android.graphics.Paint;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.RemoteException;
@@ -46,7 +45,6 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.AdapterView.OnItemSelectedListener;
-import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.EditText;
 import android.widget.Spinner;
@@ -61,17 +59,17 @@ public class SpellbookFragment extends SherlockFragment implements
 		LoaderManager.LoaderCallbacks<Cursor> {
 	private static final String TAG = "SpellbookFragment";
 	private BaseAdapter searchAdapter;
-	private TextView mSpellbookName;
 	private TextView mSpellbookClass;
 	private SectionListAdapter sectionAdapter;
 	private SectionListView listView;
 	private ContentResolver cr;
-	private Map<String, CasterClass> classMap;
-	private List<CasterClass> classList;
+	private ClassListHandler classListHandler;
 	private Spinner levelSpinner;
 	private TextView levelText;
 	private EditText nameInput;
 	private TextView addSearch;
+	private View searchTools1;
+	private View searchTools2;
 	private View v;
 	private Uri spellbookUri;
 	private Long spellbookId;
@@ -87,14 +85,7 @@ public class SpellbookFragment extends SherlockFragment implements
 		super.onCreate(savedInstanceState);
 		cr = this.getActivity().getContentResolver();
 		v = inflater.inflate(R.layout.spellbook_fragment, container, false);
-		mSpellbookName = (TextView) v.findViewById(R.id.spellbook_name);
-		mSpellbookName.setPaintFlags(Paint.UNDERLINE_TEXT_FLAG);
-		mSpellbookName
-				.setOnLongClickListener(new SpellbookNameLongClickListener());
 		mSpellbookClass = (TextView) v.findViewById(R.id.spellbook_class);
-		mSpellbookClass.setPaintFlags(Paint.UNDERLINE_TEXT_FLAG);
-		mSpellbookClass
-				.setOnLongClickListener(new SpellbookClassLongClickListener());
 		levelSpinner = (Spinner) v.findViewById(R.id.level_spinner);
 		levelSpinner
 				.setOnItemSelectedListener(new LevelOnItemSelectedListener());
@@ -103,6 +94,8 @@ public class SpellbookFragment extends SherlockFragment implements
 		levelText.setVisibility(View.INVISIBLE);
 		nameInput = (EditText) v.findViewById(R.id.name_input);
 		addSearch = (TextView) v.findViewById(R.id.add_search);
+		searchTools1 = (View) v.findViewById(R.id.search_layout1);
+		searchTools2 = (View) v.findViewById(R.id.search_layout2);
 		nameInput
 				.setOnEditorActionListener(new TextView.OnEditorActionListener() {
 					@Override
@@ -173,10 +166,12 @@ public class SpellbookFragment extends SherlockFragment implements
 		switch (id) {
 		case R.id.menu_rename_spellbook:
 			return editSpellbookName();
-		case R.id.menu_change_class:
-			return editSpellbookClass();
 		case R.id.menu_delete_spellbook:
 			deleteSpellbook();
+			return true;
+		case R.id.menu_add:
+			SpellbookActivity act = (SpellbookActivity) this.getActivity();
+			act.mPager.setCurrentItem(1);
 			return true;
 		}
 		return super.onOptionsItemSelected(item);
@@ -256,10 +251,8 @@ public class SpellbookFragment extends SherlockFragment implements
 
 		// Set up the input
 		final EditText input = new EditText(getActivity());
-		input.setText(mSpellbookName.getText());
+		input.setText(spellbookName);
 		input.setSelectAllOnFocus(true);
-		// Specify the type of input expected; this, for example, sets
-		// the input as a password, and will mask the text
 		input.setInputType(InputType.TYPE_CLASS_TEXT);
 		builder.setView(input);
 
@@ -304,94 +297,6 @@ public class SpellbookFragment extends SherlockFragment implements
 		@Override
 		public boolean onLongClick(View v) {
 			return editSpellbookName();
-		}
-	}
-
-	private void populateClassSpinner(Spinner classSpinner) {
-		List<String> list = new ArrayList<String>();
-		for (int i = 0; i < classList.size(); i++) {
-			list.add(classList.get(i).getName());
-		}
-		ArrayAdapter<String> dataAdapter = new ArrayAdapter<String>(
-				getActivity(), android.R.layout.simple_spinner_item, list);
-		dataAdapter
-				.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-		classSpinner.setAdapter(dataAdapter);
-		for (int i = 0; i < dataAdapter.getCount(); i++) {
-			String item = dataAdapter.getItem(i);
-			if (item.equals(spellbookClass)) {
-				classSpinner.setSelection(i);
-				break;
-			}
-		}
-	}
-
-	protected boolean editSpellbookClass() {
-		AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-		builder.setTitle("Spellbook Class");
-
-		// Set up the input
-		final Spinner classSpinner = new Spinner(getActivity());
-		populateClassSpinner(classSpinner);
-		builder.setView(classSpinner);
-
-		// Set up the buttons
-		builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
-			@Override
-			public void onClick(DialogInterface dialog, int which) {
-				ContentValues spellbookValues = new ContentValues();
-				spellbookValues.put(SpellbookEntry.COLUMN_SPELL_CLASS,
-						(String) classSpinner.getSelectedItem());
-				String[] args = { String.valueOf(spellbookId) };
-				getActivity().getContentResolver().update(
-						SpellbookEntry.CONTENT_URI, spellbookValues,
-						SpellbookEntry._ID + " = ?", args);
-			}
-		});
-		builder.setNegativeButton("Cancel",
-				new DialogInterface.OnClickListener() {
-					@Override
-					public void onClick(DialogInterface dialog, int which) {
-						dialog.cancel();
-					}
-				});
-
-		builder.show();
-		return true;
-	}
-
-	protected class SpellbookClassLongClickListener implements
-			View.OnLongClickListener {
-
-		@Override
-		public boolean onLongClick(View v) {
-			return editSpellbookClass();
-		}
-	}
-
-	protected class CasterClass {
-		private String name;
-		private List<String> levels;
-
-		public CasterClass(String name) {
-			this.name = name;
-			levels = new ArrayList<String>();
-		}
-
-		public void setName(String name) {
-			this.name = name;
-		}
-
-		public void addLevel(String level) {
-			levels.add(level);
-		}
-
-		public String getName() {
-			return this.name;
-		}
-
-		public List<String> getLevels() {
-			return this.levels;
 		}
 	}
 
@@ -448,7 +353,7 @@ public class SpellbookFragment extends SherlockFragment implements
 			if (hasNext) {
 				this.spellbookId = cursor.getLong(0);
 				spellbookName = cursor.getString(1);
-				this.mSpellbookName.setText(spellbookName);
+				getActivity().getActionBar().setTitle(spellbookName);
 				spellbookClass = cursor.getString(2);
 				this.mSpellbookClass.setText(spellbookClass);
 				levelSpinner.setVisibility(View.VISIBLE);
@@ -474,28 +379,7 @@ public class SpellbookFragment extends SherlockFragment implements
 			populateSpellList();
 			break;
 		case CLASSLIST_LOADER:
-			hasNext = cursor.moveToFirst();
-			CasterClass casterClass = null;
-			classList = new ArrayList<CasterClass>();
-			classMap = new HashMap<String, CasterClass>();
-			while (hasNext) {
-				String className = CasterContract.CasterContractUtils
-						.getClass(cursor);
-				String classLevel = CasterContract.CasterContractUtils
-						.getLevel(cursor).toString();
-				if (casterClass == null) {
-					casterClass = new CasterClass(className);
-					classList.add(casterClass);
-					classMap.put(className, casterClass);
-				}
-				if (!className.equals(casterClass.getName())) {
-					casterClass = new CasterClass(className);
-					classList.add(casterClass);
-					classMap.put(className, casterClass);
-				}
-				casterClass.getLevels().add(classLevel);
-				hasNext = cursor.moveToNext();
-			}
+			classListHandler = new ClassListHandler(this.getActivity(), cursor);
 			break;
 		case CLASSID_LOADER:
 			hasNext = cursor.moveToFirst();
@@ -508,8 +392,9 @@ public class SpellbookFragment extends SherlockFragment implements
 			throw new UnsupportedOperationException("Unknown id: "
 					+ loader.getId());
 		}
-		if (classMap != null && spellbookClass != null) {
-			populateLevelSpinner(classMap.get(spellbookClass));
+		if (classListHandler != null && spellbookClass != null) {
+			classListHandler.populateLevelSpinner(levelSpinner, spellbookClass,
+					true);
 			if (spellbookClassId != null) {
 				requestSpells();
 			}
@@ -518,7 +403,6 @@ public class SpellbookFragment extends SherlockFragment implements
 
 	public void requestSpells() {
 		Integer level = levelSpinner.getSelectedItemPosition() - 1;
-		addSearch.setVisibility(View.GONE);
 		try {
 			ContentProviderClient spellListClient = cr
 					.acquireContentProviderClient(SpellContract.AUTHORITY);
@@ -573,24 +457,27 @@ public class SpellbookFragment extends SherlockFragment implements
 					newSpells.add(spell);
 				}
 			}
+			SpellListItem[] spellItems = SpellbookListAdapter
+					.toSpellListItemArray(newSpells);
+			if (spellItems == null) {
+				spellItems = new SpellListItem[0];
+			}
+			if (spellbookSpells.size() == 0) {
+				addSearch.setVisibility(View.VISIBLE);
+				searchTools1.setVisibility(View.GONE);
+				searchTools2.setVisibility(View.GONE);
+			} else {
+				addSearch.setVisibility(View.GONE);
+				searchTools1.setVisibility(View.VISIBLE);
+				searchTools2.setVisibility(View.VISIBLE);
+			}
 			searchAdapter = new SpellbookListAdapter(getActivity()
 					.getApplicationContext(), R.layout.class_spell_list_item,
-					SpellbookListAdapter.toSpellListItemArray(newSpells));
+					spellItems);
 			sectionAdapter = new SectionListAdapter(getActivity()
 					.getLayoutInflater(), searchAdapter);
 			listView.setAdapter(sectionAdapter);
 		}
-	}
-
-	public void populateLevelSpinner(CasterClass caster) {
-		List<String> list = new ArrayList<String>();
-		list.add("-");
-		list.addAll(1, caster.getLevels());
-		ArrayAdapter<String> dataAdapter = new ArrayAdapter<String>(
-				this.getActivity(), android.R.layout.simple_spinner_item, list);
-		dataAdapter
-				.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-		levelSpinner.setAdapter(dataAdapter);
 	}
 
 	@Override
