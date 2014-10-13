@@ -38,6 +38,7 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
+import android.widget.AdapterView.OnItemLongClickListener;
 import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.BaseAdapter;
 import android.widget.EditText;
@@ -126,6 +127,17 @@ public class SpellbookEditFragment extends SherlockFragment implements
 				intent.setData(Uri.parse(currentItem.getContentUrl()));
 				intent.addCategory("android.intent.category.LAUNCHER");
 				startActivity(intent);
+			}
+		});
+		listView.setOnItemLongClickListener(new OnItemLongClickListener() {
+			public boolean onItemLongClick(AdapterView<?> parent, View view,
+					int position, long id) {
+				final SpellListItem currentItem = (SpellListItem) listView
+						.getAdapter().getItem(position);
+				SpellAddHandler sah = new SpellAddHandler(getActivity(),
+						classListHandler, currentItem);
+				sah.createDialog();
+				return true;
 			}
 		});
 		getActivity().getWindow().setSoftInputMode(
@@ -254,7 +266,7 @@ public class SpellbookEditFragment extends SherlockFragment implements
 		}
 		if (classListHandler != null && spellbookClass != null) {
 			classListHandler.populateLevelSpinner(levelSpinner, spellbookClass,
-					true);
+					true, null);
 			if (spellbookClassId != null) {
 				requestSpells();
 			}

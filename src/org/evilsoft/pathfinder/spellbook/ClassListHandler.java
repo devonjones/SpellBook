@@ -52,23 +52,32 @@ public class ClassListHandler {
 	}
 
 	public void populateLevelSpinner(Spinner levelSpinner, Integer classNum,
-			boolean noLevel) {
-		populateLevelSpinner(levelSpinner, getClassName(classNum), noLevel);
+			boolean noLevel, String defaultLevel) {
+		populateLevelSpinner(levelSpinner, getClassName(classNum), noLevel,
+				defaultLevel);
 	}
 
 	public void populateLevelSpinner(Spinner levelSpinner, String className,
-			boolean noLevel) {
+			boolean noLevel, String defaultLevel) {
 		CasterClass defaultClass = classMap.get(className);
 		List<String> list = new ArrayList<String>();
 		if (noLevel) {
 			list.add("-");
 		}
-		list.addAll(1, defaultClass.getLevels());
+		list.addAll(defaultClass.getLevels());
 		ArrayAdapter<String> dataAdapter = new ArrayAdapter<String>(context,
 				android.R.layout.simple_spinner_item, list);
 		dataAdapter
 				.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
 		levelSpinner.setAdapter(dataAdapter);
+		if (defaultLevel != null) {
+			for (int i = 0; i < list.size(); i++) {
+				if (list.get(i) == defaultLevel) {
+					levelSpinner.setSelection(i);
+					break;
+				}
+			}
+		}
 	}
 
 	public void populateClassSpinner(Spinner classSpinner, String className,

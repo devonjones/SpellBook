@@ -19,8 +19,6 @@ import org.evilsoft.pathfinder.spellbook.sectionlist.SectionListView;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.ComponentName;
-import android.content.ContentProviderClient;
-import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -28,7 +26,6 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.RemoteException;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.CursorLoader;
 import android.support.v4.content.Loader;
@@ -44,7 +41,9 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
+import android.widget.AdapterView.OnItemLongClickListener;
 import android.widget.AdapterView.OnItemSelectedListener;
+import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.EditText;
 import android.widget.Spinner;
@@ -62,7 +61,6 @@ public class SpellbookFragment extends SherlockFragment implements
 	private TextView mSpellbookClass;
 	private SectionListAdapter sectionAdapter;
 	private SectionListView listView;
-	private ContentResolver cr;
 	private ClassListHandler classListHandler;
 	private Spinner levelSpinner;
 	private TextView levelText;
@@ -75,6 +73,7 @@ public class SpellbookFragment extends SherlockFragment implements
 	private Long spellbookId;
 	private String spellbookName;
 	private String spellbookClass;
+	private Integer spellCount;
 	private Long spellbookClassId;
 	private Map<String, SpellListItem> spells;
 	private List<SpellListItem> spellbookSpells;
@@ -83,7 +82,7 @@ public class SpellbookFragment extends SherlockFragment implements
 	public View onCreateView(LayoutInflater inflater, ViewGroup container,
 			Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		cr = this.getActivity().getContentResolver();
+		spellCount = 0;
 		v = inflater.inflate(R.layout.spellbook_fragment, container, false);
 		mSpellbookClass = (TextView) v.findViewById(R.id.spellbook_class);
 		levelSpinner = (Spinner) v.findViewById(R.id.level_spinner);
@@ -102,7 +101,8 @@ public class SpellbookFragment extends SherlockFragment implements
 					public boolean onEditorAction(TextView v, int actionId,
 							KeyEvent event) {
 						if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-							requestSpells();
+							getLoaderManager().restartLoader(SPELLS_LOADER,
+									null, SpellbookFragment.this);
 							hideSoftKeyboard(v);
 							return true;
 						}
@@ -112,7 +112,8 @@ public class SpellbookFragment extends SherlockFragment implements
 		nameInput.addTextChangedListener(new TextWatcher() {
 			public void afterTextChanged(Editable s) {
 				if (spellbookClassId != null) {
-					requestSpells();
+					getLoaderManager().restartLoader(SPELLS_LOADER, null,
+							SpellbookFragment.this);
 				}
 			}
 
@@ -139,6 +140,62 @@ public class SpellbookFragment extends SherlockFragment implements
 				intent.setData(Uri.parse(currentItem.getContentUrl()));
 				intent.addCategory("android.intent.category.LAUNCHER");
 				startActivity(intent);
+			}
+		});
+		listView.setOnItemLongClickListener(new OnItemLongClickListener() {
+			public boolean onItemLongClick(AdapterView<?> parent, View view,
+					int position, long id) {
+				final int itemPosition = position;
+				AlertDialog.Builder builder = new AlertDialog.Builder(
+						getActivity());
+				builder.setTitle("Select One");
+				final ArrayAdapter<String> arrayAdapter = new ArrayAdapter<String>(
+						getActivity(), android.R.layout.select_dialog_item);
+				arrayAdapter.add("Remove Spell");
+				arrayAdapter.add("Add to another spellbook");
+				builder.setNegativeButton("Cancel",
+						new DialogInterface.OnClickListener() {
+
+							@Override
+							public void onClick(DialogInterface dialog,
+									int which) {
+								dialog.dismiss();
+							}
+						});
+
+				builder.setAdapter(arrayAdapter,
+						new DialogInterface.OnClickListener() {
+
+							@Override
+							public void onClick(DialogInterface dialog,
+									int which) {
+								final SpellListItem currentItem = (SpellListItem) listView
+										.getAdapter().getItem(itemPosition);
+								if (which == 0) {
+									List<String> spellValues = new ArrayList<String>();
+									spellValues.add(spellbookId.toString());
+									spellValues.add(currentItem.getContentUrl());
+									spellValues.add(((Integer) currentItem
+											.getLevel()).toString());
+									getActivity()
+											.getContentResolver()
+											.delete(SpellbookSpellEntry
+													.buildSpellbookSpellsUri(spellbookId),
+													"spellbook_id = ? AND url = ? AND level = ?",
+													BaseApiHelper
+															.toStringArray(spellValues));
+
+								} else {
+									dialog.dismiss();
+									SpellAddHandler sah = new SpellAddHandler(
+											getActivity(), classListHandler,
+											currentItem);
+									sah.createDialog();
+								}
+							}
+						});
+				builder.show();
+				return true;
 			}
 		});
 		getActivity().getWindow().setSoftInputMode(
@@ -235,7 +292,8 @@ public class SpellbookFragment extends SherlockFragment implements
 		public void onItemSelected(AdapterView<?> parent, View view, int pos,
 				long id) {
 			if (spellbookClassId != null) {
-				requestSpells();
+				getLoaderManager().restartLoader(SPELLBOOK_SPELLS_LOADER, null,
+						SpellbookFragment.this);
 			}
 		}
 
@@ -310,12 +368,18 @@ public class SpellbookFragment extends SherlockFragment implements
 			SpellbookSpellEntry._ID, SpellbookSpellEntry.COLUMN_URL,
 			SpellbookSpellEntry.COLUMN_NAME, SpellbookSpellEntry.COLUMN_LEVEL };
 
-	private static final int CLASSLIST_LOADER = 2;
-	private static final int CLASSID_LOADER = 3;
+	private static final int SPELLBOOK_SPELL_COUNT_LOADER = 2;
+	private static final String[] SPELLBOOK_SPELL_COUNT_COLUMNS = { "count(*)" };
+
+	private static final int SPELLS_LOADER = 3;
+	private static final int CLASSLIST_LOADER = 4;
+	private static final int CLASSID_LOADER = 5;
 
 	@Override
 	public Loader<Cursor> onCreateLoader(int id, Bundle args) {
 		String sortOrder;
+		List<String> selectionArgs = new ArrayList<String>();
+		List<String> selection = new ArrayList<String>();
 		switch (id) {
 		case SPELLBOOK_LOADER:
 			sortOrder = SpellbookEntry.COLUMN_NAME + " ASC";
@@ -326,18 +390,44 @@ public class SpellbookFragment extends SherlockFragment implements
 					.buildSpellbookSpellsUri(spellbookId);
 			sortOrder = SpellbookSpellEntry.COLUMN_LEVEL + " ASC, "
 					+ SpellbookSpellEntry.COLUMN_NAME + " ASC";
+			String level = (String) levelSpinner.getSelectedItem();
+			if (levelSpinner.getSelectedItemPosition() > 0) {
+				selectionArgs.add(level);
+				selection.add("level = ?");
+			}
+
 			return new CursorLoader(getActivity(), spellbookSpellUri,
-					SPELLBOOK_SPELLS_COLUMNS, null, null, sortOrder);
+					SPELLBOOK_SPELLS_COLUMNS,
+					BaseApiHelper.joinSelectionCriteria(selection),
+					BaseApiHelper.toStringArray(selectionArgs), sortOrder);
+		case SPELLBOOK_SPELL_COUNT_LOADER:
+			Uri spellbookSpellCountUri = SpellbookSpellEntry
+					.buildSpellbookSpellsUri(spellbookId);
+			return new CursorLoader(getActivity(), spellbookSpellCountUri,
+					SPELLBOOK_SPELL_COUNT_COLUMNS,
+					BaseApiHelper.joinSelectionCriteria(selection),
+					BaseApiHelper.toStringArray(selectionArgs), null);
+		case SPELLS_LOADER:
+			if (!nameInput.getText().toString().equals("")) {
+				selection.add("name LIKE '%" + nameInput.getText().toString()
+						+ "%'");
+			}
+			return new CursorLoader(getActivity(),
+					SpellContract.SPELL_LIST_URI, null,
+					BaseApiHelper.joinSelectionCriteria(selection),
+					BaseApiHelper.toStringArray(selectionArgs), null);
 		case CLASSLIST_LOADER:
 			return new CursorLoader(getActivity(),
 					CasterContract.CASTER_LIST_URI, null, null, null, null);
 		case CLASSID_LOADER:
-			String[] selectionArgs = new String[2];
-			selectionArgs[0] = "class";
-			selectionArgs[1] = spellbookClass;
+			selectionArgs.add("class");
+			selection.add("type = ?");
+			selectionArgs.add(spellbookClass);
+			selection.add("name = ?");
 			return new CursorLoader(getActivity(),
 					SectionContract.SECTION_LIST_URI, null,
-					"type = ? AND name = ?", selectionArgs, null);
+					BaseApiHelper.joinSelectionCriteria(selection),
+					BaseApiHelper.toStringArray(selectionArgs), null);
 
 		default:
 			throw new UnsupportedOperationException("Unknown id: " + id);
@@ -359,10 +449,16 @@ public class SpellbookFragment extends SherlockFragment implements
 				levelSpinner.setVisibility(View.VISIBLE);
 				levelText.setVisibility(View.VISIBLE);
 				v.requestLayout();
+				getLoaderManager().restartLoader(SPELLBOOK_SPELL_COUNT_LOADER,
+						null, this);
 				getLoaderManager().restartLoader(SPELLBOOK_SPELLS_LOADER, null,
 						this);
 				getLoaderManager().restartLoader(CLASSLIST_LOADER, null, this);
 				getLoaderManager().restartLoader(CLASSID_LOADER, null, this);
+			}
+			if (classListHandler != null && spellbookClass != null) {
+				classListHandler.populateLevelSpinner(levelSpinner,
+						spellbookClass, true, null);
 			}
 			break;
 		case SPELLBOOK_SPELLS_LOADER:
@@ -378,8 +474,38 @@ public class SpellbookFragment extends SherlockFragment implements
 			}
 			populateSpellList();
 			break;
+		case SPELLBOOK_SPELL_COUNT_LOADER:
+			hasNext = cursor.moveToFirst();
+			if (hasNext) {
+				spellCount = cursor.getInt(0);
+			}
+			if (spellCount == 0) {
+				addSearch.setVisibility(View.VISIBLE);
+				searchTools1.setVisibility(View.GONE);
+				searchTools2.setVisibility(View.GONE);
+			} else {
+				addSearch.setVisibility(View.GONE);
+				searchTools1.setVisibility(View.VISIBLE);
+				searchTools2.setVisibility(View.VISIBLE);
+			}
+			break;
+		case SPELLS_LOADER:
+			spells = new HashMap<String, SpellListItem>();
+			hasNext = cursor.moveToFirst();
+			while (hasNext) {
+				SpellListItem spell = AbstractSpellListAdapter
+						.GenerateSpellListItem(cursor);
+				spells.put(spell.getContentUrl(), spell);
+				hasNext = cursor.moveToNext();
+			}
+			populateSpellList();
+			break;
 		case CLASSLIST_LOADER:
 			classListHandler = new ClassListHandler(this.getActivity(), cursor);
+			if (classListHandler != null && spellbookClass != null) {
+				classListHandler.populateLevelSpinner(levelSpinner,
+						spellbookClass, true, null);
+			}
 			break;
 		case CLASSID_LOADER:
 			hasNext = cursor.moveToFirst();
@@ -387,53 +513,11 @@ public class SpellbookFragment extends SherlockFragment implements
 				spellbookClassId = SectionContract.SectionContractUtils.getId(
 						cursor).longValue();
 			}
+			getLoaderManager().restartLoader(SPELLS_LOADER, null, this);
 			break;
 		default:
 			throw new UnsupportedOperationException("Unknown id: "
 					+ loader.getId());
-		}
-		if (classListHandler != null && spellbookClass != null) {
-			classListHandler.populateLevelSpinner(levelSpinner, spellbookClass,
-					true);
-			if (spellbookClassId != null) {
-				requestSpells();
-			}
-		}
-	}
-
-	public void requestSpells() {
-		Integer level = levelSpinner.getSelectedItemPosition() - 1;
-		try {
-			ContentProviderClient spellListClient = cr
-					.acquireContentProviderClient(SpellContract.AUTHORITY);
-			List<String> selectionArgs = new ArrayList<String>();
-			List<String> selection = new ArrayList<String>();
-
-			if (level > -1) {
-				selectionArgs.add(level.toString());
-				selection.add("level = ?");
-			}
-			if (!nameInput.getText().toString().equals("")) {
-				selection.add("name LIKE '%" + nameInput.getText().toString()
-						+ "%'");
-			}
-			Uri uri = SpellContract.getClassSpellList(spellbookClassId
-					.toString());
-			Cursor cursor = spellListClient.query(uri, null,
-					BaseApiHelper.joinSelectionCriteria(selection),
-					BaseApiHelper.toStringArray(selectionArgs), null);
-			spells = new HashMap<String, SpellListItem>();
-			boolean hasNext = cursor.moveToFirst();
-			while (hasNext) {
-				SpellListItem spell = AbstractSpellListAdapter
-						.GenerateClassSpellListItem(cursor);
-				spells.put(spell.getContentUrl(), spell);
-				hasNext = cursor.moveToNext();
-			}
-			populateSpellList();
-		} catch (RemoteException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 		}
 	}
 
@@ -461,15 +545,6 @@ public class SpellbookFragment extends SherlockFragment implements
 					.toSpellListItemArray(newSpells);
 			if (spellItems == null) {
 				spellItems = new SpellListItem[0];
-			}
-			if (spellbookSpells.size() == 0) {
-				addSearch.setVisibility(View.VISIBLE);
-				searchTools1.setVisibility(View.GONE);
-				searchTools2.setVisibility(View.GONE);
-			} else {
-				addSearch.setVisibility(View.GONE);
-				searchTools1.setVisibility(View.VISIBLE);
-				searchTools2.setVisibility(View.VISIBLE);
 			}
 			searchAdapter = new SpellbookListAdapter(getActivity()
 					.getApplicationContext(), R.layout.class_spell_list_item,

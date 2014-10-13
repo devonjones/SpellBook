@@ -35,6 +35,7 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
+import android.widget.AdapterView.OnItemLongClickListener;
 import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.BaseAdapter;
 import android.widget.EditText;
@@ -116,6 +117,16 @@ public class FindFragment extends SherlockFragment implements
 				intent.setData(Uri.parse(currentItem.getContentUrl()));
 				intent.addCategory("android.intent.category.LAUNCHER");
 				startActivity(intent);
+			}
+		});
+		listView.setOnItemLongClickListener(new OnItemLongClickListener() {
+			public boolean onItemLongClick(AdapterView<?> parent, View vire,
+					int position, long id) {
+				final SpellListItem currentItem = (SpellListItem) listView
+						.getAdapter().getItem(position);
+				SpellAddHandler sah = new SpellAddHandler(getActivity(),
+						classListHandler, currentItem);
+				return sah.createDialog();
 			}
 		});
 		getActivity().getWindow().setSoftInputMode(
@@ -232,7 +243,7 @@ public class FindFragment extends SherlockFragment implements
 				v.requestLayout();
 			} else {
 				classListHandler.populateLevelSpinner(levelSpinner, pos - 1,
-						true);
+						true, null);
 				levelSpinner.setVisibility(View.VISIBLE);
 				levelText.setVisibility(View.VISIBLE);
 				v.requestLayout();
@@ -261,7 +272,6 @@ public class FindFragment extends SherlockFragment implements
 
 	@Override
 	public Loader<Cursor> onCreateLoader(int id, Bundle args) {
-		String sortOrder;
 		switch (id) {
 		case CLASSLIST_LOADER:
 			return new CursorLoader(getActivity(),
@@ -273,7 +283,6 @@ public class FindFragment extends SherlockFragment implements
 
 	@Override
 	public void onLoadFinished(Loader<Cursor> loader, Cursor cursor) {
-		boolean hasNext = false;
 		switch (loader.getId()) {
 		case CLASSLIST_LOADER:
 			classListHandler = new ClassListHandler(this.getActivity(), cursor);

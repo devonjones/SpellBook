@@ -94,7 +94,10 @@ public class SpellBookSpellProvider extends ContentProvider {
 				args = new ArrayList<String>();
 			} else {
 				selection = selection + " AND spellbook_id = ?";
-				args = Arrays.asList(selectionArgs);
+				args = new ArrayList<String>();
+				for (int i = 0; i < selectionArgs.length; i++) {
+					args.add(selectionArgs[i]);
+				}
 			}
 			args.add(spellbookId.toString());
 			selectionArgs = BaseApiHelper.toStringArray(args);
